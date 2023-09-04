@@ -3,6 +3,7 @@ import argparse
 import numpy as np
 import cv2
 import math
+import time
 from collections import OrderedDict
 
 import torch
@@ -11,6 +12,10 @@ import torch.nn.functional as F
 
 from model import SparseMat
 from utils import load_config
+
+
+def get_file_title(path):
+    return os.path.splitext(os.path.basename(path))[0]
 
 
 def load_checkpoint(net, pretrained_model):
@@ -48,10 +53,23 @@ def run_single_image(net, input_path, save_dir):
     origin_h, origin_w = image.shape[:2]
     tensor = preprocess(image)
     with torch.no_grad():
-        pred = net.inference(tensor)
+        start_time = time.time()
+        pred, lr_pred, mask_s, mask_t = net.inference(tensor)
+        torch.cuda.synchronize()
+        end_time = time.time()
+        print("Original shape", str(origin_h) + "x" + str(origin_w), "pred shape",
+              str(pred.shape[-2]) + "x" + str(pred.shape[-1]), str(round(end_time - start_time, 2)))
     pred = F.interpolate(pred, (origin_h, origin_w), align_corners=False, mode="bilinear")
     pred_alpha = (pred * 255).squeeze().data.cpu().numpy().astype(np.uint8)
-    cv2.imwrite(os.path.join(save_dir, filename), pred_alpha)
+    pred_lr = (lr_pred * 255).squeeze().data.cpu().numpy().astype(np.uint8)
+    mask_s = (mask_s * 255).squeeze().data.cpu().numpy().astype(np.uint8)
+    mask_t = (mask_t * 255).squeeze().data.cpu().numpy().astype(np.uint8)
+
+    filetitle = get_file_title(filename)
+    cv2.imwrite(os.path.join(save_dir, filetitle + '_alpha.png'), pred_alpha)
+    cv2.imwrite(os.path.join(save_dir, filetitle + '_alpha_lr.png'), pred_lr)
+    cv2.imwrite(os.path.join(save_dir, filetitle + '_maks_s.png'), mask_s)
+    cv2.imwrite(os.path.join(save_dir, filetitle + '_maks_t.png'), mask_t)
     return pred
 
 
