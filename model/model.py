@@ -126,4 +126,4 @@ class SparseMat(nn.Module):
             preds = self.shm(sparse_inputs, lr_pred_us, coords, hr_img_ds.size(0), mask_s.size()[2:], ctx=ctx)
             hr_pred_sp = preds[-1]
             hr_pred = hr_pred_sp * mask_s + lr_pred_us * (1-mask_s)
-        return hr_pred
+        return hr_pred, lr_pred, mask_s, mask_t
